@@ -99,7 +99,7 @@ class TestScan(unittest.TestCase):
             event_object(event)
             self.assertEquals(
                 cm.exception.message,
-                "Unable to retrieve object from event.\n{}".format(event),
+                f"Unable to retrieve object from event.\n{event}",
             )
 
     def test_s3_event_object_no_records(self):
@@ -167,9 +167,7 @@ class TestScan(unittest.TestCase):
                 verify_s3_object_version(self.s3, s3_obj)
             self.assertEquals(
                 cm.exception.message,
-                "Object versioning is not enabled in bucket {}".format(
-                    self.s3_bucket_name
-                ),
+                f"Object versioning is not enabled in bucket {self.s3_bucket_name}",
             )
 
     def test_verify_s3_object_version_multiple_versions(self):
@@ -222,9 +220,7 @@ class TestScan(unittest.TestCase):
                 verify_s3_object_version(self.s3, s3_obj)
             self.assertEquals(
                 cm.exception.message,
-                "Detected multiple object versions in {}.{}, aborting processing".format(
-                    self.s3_bucket_name, self.s3_key_name
-                ),
+                f"Detected multiple object versions in {self.s3_bucket_name}.{self.s3_key_name}, aborting processing",
             )
 
     def test_sns_start_scan(self):
@@ -426,7 +422,5 @@ class TestScan(unittest.TestCase):
                 delete_s3_object(s3_obj)
             self.assertEquals(
                 cm.exception.message,
-                "Failed to delete infected file: {}.{}".format(
-                    self.s3_bucket_name, self.s3_key_name
-                ),
+                f"Failed to delete infected file: {self.s3_bucket_name}.{self.s3_key_name}",
             )

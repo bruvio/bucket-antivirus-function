@@ -53,20 +53,20 @@ def update_defs_from_s3(s3_client, bucket, prefix):
     for file_prefix in AV_DEFINITION_FILE_PREFIXES:
         s3_best_time = None
         for file_suffix in AV_DEFINITION_FILE_SUFFIXES:
-            filename = file_prefix + "." + file_suffix
+            filename = f"{file_prefix}.{file_suffix}"
             s3_path = os.path.join(AV_DEFINITION_S3_PREFIX, filename)
             local_path = os.path.join(AV_DEFINITION_PATH, filename)
             s3_md5 = md5_from_s3_tags(s3_client, bucket, s3_path)
             s3_time = time_from_s3(s3_client, bucket, s3_path)
 
             if s3_best_time is not None and s3_time < s3_best_time:
-                print("Not downloading older file in series: %s" % filename)
+                print(f"Not downloading older file in series: {filename}")
                 continue
             else:
                 s3_best_time = s3_time
 
             if os.path.exists(local_path) and md5_from_file(local_path) == s3_md5:
-                print("Not downloading %s because local md5 matches s3." % filename)
+                print(f"Not downloading {filename} because local md5 matches s3.")
                 continue
             if s3_md5:
                 to_download[file_prefix] = {
@@ -79,7 +79,7 @@ def update_defs_from_s3(s3_client, bucket, prefix):
 def upload_defs_to_s3(s3_client, bucket, prefix, local_path):
     for file_prefix in AV_DEFINITION_FILE_PREFIXES:
         for file_suffix in AV_DEFINITION_FILE_SUFFIXES:
-            filename = file_prefix + "." + file_suffix
+            filename = f"{file_prefix}.{file_suffix}"
             local_file_path = os.path.join(local_path, filename)
             if os.path.exists(local_file_path):
                 local_file_md5 = md5_from_file(local_file_path)
@@ -87,8 +87,7 @@ def upload_defs_to_s3(s3_client, bucket, prefix, local_path):
                     s3_client, bucket, os.path.join(prefix, filename)
                 ):
                     print(
-                        "Uploading %s to s3://%s"
-                        % (local_file_path, os.path.join(bucket, prefix, filename))
+                        f"Uploading {local_file_path} to s3://{os.path.join(bucket, prefix, filename)}"
                     )
                     s3 = boto3.resource("s3", endpoint_url=S3_ENDPOINT)
                     s3_object = s3.Object(bucket, os.path.join(prefix, filename))
@@ -99,29 +98,25 @@ def upload_defs_to_s3(s3_client, bucket, prefix, local_path):
                         Tagging={"TagSet": [{"Key": "md5", "Value": local_file_md5}]},
                     )
                 else:
-                    print(
-                        "Not uploading %s because md5 on remote matches local."
-                        % filename
-                    )
+                    print(f"Not uploading {filename} because md5 on remote matches local.")
             else:
-                print("File does not exist: %s" % filename)
+                print(f"File does not exist: {filename}")
 
 
 def update_defs_from_freshclam(path, library_path=""):
     create_dir(path)
     fc_env = os.environ.copy()
     if library_path:
-        fc_env["LD_LIBRARY_PATH"] = "%s:%s" % (
-            ":".join(current_library_search_path()),
-            CLAMAVLIB_PATH,
-        )
-    print("Starting freshclam with defs in %s." % path)
+        fc_env[
+            "LD_LIBRARY_PATH"
+        ] = f'{":".join(current_library_search_path())}:{CLAMAVLIB_PATH}'
+    print(f"Starting freshclam with defs in {path}.")
     fc_proc = subprocess.Popen(
         [
             FRESHCLAM_PATH,
             "--config-file=./bin/freshclam.conf",
-            "-u %s" % pwd.getpwuid(os.getuid())[0],
-            "--datadir=%s" % path,
+            f"-u {pwd.getpwuid(os.getuid())[0]}",
+            f"--datadir={path}",
         ],
         stderr=subprocess.STDOUT,
         stdout=subprocess.PIPE,
@@ -130,7 +125,7 @@ def update_defs_from_freshclam(path, library_path=""):
     output = fc_proc.communicate()[0]
     print("freshclam output:\n%s" % output)
     if fc_proc.returncode != 0:
-        print("Unexpected exit code from freshclam: %s." % fc_proc.returncode)
+        print(f"Unexpected exit code from freshclam: {fc_proc.returncode}.")
     return fc_proc.returncode
 
 
@@ -156,10 +151,7 @@ def md5_from_s3_tags(s3_client, bucket, key):
             return ""
         else:
             raise
-    for tag in tags:
-        if tag["Key"] == "md5":
-            return tag["Value"]
-    return ""
+    return next((tag["Value"] for tag in tags if tag["Key"] == "md5"), "")
 
 
 def time_from_s3(s3_client, bucket, key):
@@ -187,7 +179,7 @@ def scan_output_to_json(output):
 def scan_file(path):
     av_env = os.environ.copy()
     av_env["LD_LIBRARY_PATH"] = CLAMAVLIB_PATH
-    print("Starting clamscan of %s." % path)
+    print(f"Starting clamscan of {path}.")
     av_proc = subprocess.Popen(
         [CLAMSCAN_PATH, "-v", "-a", "--stdout", "-d", AV_DEFINITION_PATH, path],
         stderr=subprocess.STDOUT,

@@ -192,7 +192,7 @@ class TestClamAV(unittest.TestCase):
         for file_prefix in AV_DEFINITION_FILE_PREFIXES:
             for file_suffix in AV_DEFINITION_FILE_SUFFIXES:
                 side_effect.extend([True, True])
-                filename = file_prefix + "." + file_suffix
+                filename = f"{file_prefix}.{file_suffix}"
                 key_names.append(os.path.join(AV_DEFINITION_S3_PREFIX, filename))
         mock_exists.side_effect = side_effect
 
@@ -254,7 +254,7 @@ class TestClamAV(unittest.TestCase):
         for file_prefix in AV_DEFINITION_FILE_PREFIXES:
             for file_suffix in AV_DEFINITION_FILE_SUFFIXES:
                 side_effect.extend([True, True])
-                filename = file_prefix + "." + file_suffix
+                filename = f"{file_prefix}.{file_suffix}"
                 key_names.append(os.path.join(AV_DEFINITION_S3_PREFIX, filename))
         mock_exists.side_effect = side_effect
 
@@ -303,12 +303,11 @@ class TestClamAV(unittest.TestCase):
         for file_prefix in AV_DEFINITION_FILE_PREFIXES:
             for file_suffix in AV_DEFINITION_FILE_SUFFIXES:
                 side_effect.extend([True, True])
-                filename = file_prefix + "." + file_suffix
+                filename = f"{file_prefix}.{file_suffix}"
                 key_names.append(os.path.join(AV_DEFINITION_S3_PREFIX, filename))
         mock_exists.side_effect = side_effect
 
-        count = 0
-        for s3_key_name in key_names:
+        for count, s3_key_name in enumerate(key_names):
             get_object_tagging_response = tag_set
             get_object_tagging_expected_params = {
                 "Bucket": self.s3_bucket_name,
@@ -329,8 +328,6 @@ class TestClamAV(unittest.TestCase):
             s3_stubber.add_response(
                 "head_object", head_object_response, head_object_expected_params
             )
-            count += 1
-
         expected_to_download = {
             "bytecode": {
                 "local_path": "/tmp/clamav_defs/bytecode.cld",

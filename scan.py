@@ -72,7 +72,7 @@ def event_object(event, event_source="s3"):
 
     # Ensure both bucket and key exist
     if (not bucket_name) or (not key_name):
-        raise Exception("Unable to retrieve object from event.\n{}".format(event))
+        raise Exception(f"Unable to retrieve object from event.\n{event}")
 
     # Create and return the object
     s3 = boto3.resource("s3", endpoint_url=S3_ENDPOINT)
@@ -85,18 +85,16 @@ def verify_s3_object_version(s3, s3_object):
     # while a clean initial version is getting processed
     # downstream services may consume latest version by mistake and get the infected version instead
     bucket_versioning = s3.BucketVersioning(s3_object.bucket_name)
-    if bucket_versioning.status == "Enabled":
-        bucket = s3.Bucket(s3_object.bucket_name)
-        versions = list(bucket.object_versions.filter(Prefix=s3_object.key))
-        if len(versions) > 1:
-            raise Exception(
-                "Detected multiple object versions in %s.%s, aborting processing"
-                % (s3_object.bucket_name, s3_object.key)
-            )
-    else:
+    if bucket_versioning.status != "Enabled":
         # misconfigured bucket, left with no or suspended versioning
         raise Exception(
-            "Object versioning is not enabled in bucket %s" % s3_object.bucket_name
+            f"Object versioning is not enabled in bucket {s3_object.bucket_name}"
+        )
+    bucket = s3.Bucket(s3_object.bucket_name)
+    versions = list(bucket.object_versions.filter(Prefix=s3_object.key))
+    if len(versions) > 1:
+        raise Exception(
+            f"Detected multiple object versions in {s3_object.bucket_name}.{s3_object.key}, aborting processing"
         )
 
 
@@ -109,11 +107,10 @@ def delete_s3_object(s3_object):
         s3_object.delete()
     except Exception:
         raise Exception(
-            "Failed to delete infected file: %s.%s"
-            % (s3_object.bucket_name, s3_object.key)
+            f"Failed to delete infected file: {s3_object.bucket_name}.{s3_object.key}"
         )
     else:
-        print("Infected file deleted: %s.%s" % (s3_object.bucket_name, s3_object.key))
+        print(f"Infected file deleted: {s3_object.bucket_name}.{s3_object.key}")
 
 
 def set_av_metadata(s3_object, scan_result, scan_signature, timestamp):
@@ -232,9 +229,9 @@ def lambda_handler(event, context):
     for download in to_download.values():
         s3_path = download["s3_path"]
         local_path = download["local_path"]
-        print("Downloading definition file %s from s3://%s" % (local_path, s3_path))
+        print(f"Downloading definition file {local_path} from s3://{s3_path}")
         s3.Bucket(AV_DEFINITION_S3_BUCKET).download_file(s3_path, local_path)
-        print("Downloading definition file %s complete!" % (local_path))
+        print(f"Downloading definition file {local_path} complete!")
     scan_result, scan_signature = clamav.scan_file(file_path)
     print(
         "Scan of s3://%s resulted in %s\n"
