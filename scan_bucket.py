@@ -34,8 +34,9 @@ def get_objects(s3_client, s3_bucket_name):
     s3_list_objects_result = {"IsTruncated": True}
     while s3_list_objects_result["IsTruncated"]:
         s3_list_objects_config = {"Bucket": s3_bucket_name}
-        continuation_token = s3_list_objects_result.get("NextContinuationToken")
-        if continuation_token:
+        if continuation_token := s3_list_objects_result.get(
+            "NextContinuationToken"
+        ):
             s3_list_objects_config["ContinuationToken"] = continuation_token
         s3_list_objects_result = s3_client.list_objects_v2(**s3_list_objects_config)
         if "Contents" not in s3_list_objects_result:
@@ -54,17 +55,17 @@ def object_previously_scanned(s3_client, s3_bucket_name, key_name):
     s3_object_tags = s3_client.get_object_tagging(Bucket=s3_bucket_name, Key=key_name)
     if "TagSet" not in s3_object_tags:
         return False
-    for tag in s3_object_tags["TagSet"]:
-        if tag["Key"] in [AV_STATUS_METADATA, AV_TIMESTAMP_METADATA]:
-            return True
-    return False
+    return any(
+        tag["Key"] in [AV_STATUS_METADATA, AV_TIMESTAMP_METADATA]
+        for tag in s3_object_tags["TagSet"]
+    )
 
 
 # Scan an S3 object for viruses by invoking the lambda function
 # Skip any objects that have already been scanned
 def scan_object(lambda_client, lambda_function_name, s3_bucket_name, key_name):
 
-    print("Scanning: {}/{}".format(s3_bucket_name, key_name))
+    print(f"Scanning: {s3_bucket_name}/{key_name}")
     s3_event = format_s3_event(s3_bucket_name, key_name)
     lambda_invoke_result = lambda_client.invoke(
         FunctionName=lambda_function_name,
@@ -72,18 +73,22 @@ def scan_object(lambda_client, lambda_function_name, s3_bucket_name, key_name):
         Payload=json.dumps(s3_event),
     )
     if lambda_invoke_result["ResponseMetadata"]["HTTPStatusCode"] != 202:
-        print("Error invoking lambda: {}".format(lambda_invoke_result))
+        print(f"Error invoking lambda: {lambda_invoke_result}")
 
 
 # Format an S3 Event to use when invoking the lambda function
 # https://docs.aws.amazon.com/AmazonS3/latest/dev/notification-content-structure.html
 def format_s3_event(s3_bucket_name, key_name):
-    s3_event = {
+    return {
         "Records": [
-            {"s3": {"bucket": {"name": s3_bucket_name}, "object": {"key": key_name}}}
+            {
+                "s3": {
+                    "bucket": {"name": s3_bucket_name},
+                    "object": {"key": key_name},
+                }
+            }
         ]
     }
-    return s3_event
 
 
 def main(lambda_function_name, s3_bucket_name, limit):
@@ -92,7 +97,7 @@ def main(lambda_function_name, s3_bucket_name, limit):
     try:
         lambda_client.get_function(FunctionName=lambda_function_name)
     except Exception:
-        print("Lambda Function '{}' does not exist".format(lambda_function_name))
+        print(f"Lambda Function '{lambda_function_name}' does not exist")
         sys.exit(1)
 
     # Verify the S3 bucket exists
@@ -100,7 +105,7 @@ def main(lambda_function_name, s3_bucket_name, limit):
     try:
         s3_client.head_bucket(Bucket=s3_bucket_name)
     except Exception:
-        print("S3 Bucket '{}' does not exist".format(s3_bucket_name))
+        print(f"S3 Bucket '{s3_bucket_name}' does not exist")
         sys.exit(1)
 
     # Scan the objects in the bucket
